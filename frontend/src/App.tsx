@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './styles/global.css';
-import { LayoutDashboard, ShoppingCart, Package, Info, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Info, TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react';
 import axios from 'axios';
 
 const api = axios.create({
@@ -22,9 +22,40 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState({ nome: '', categoria_id: 1, unidade: 'un', descricao: '' });
 
+  // Estados de Gerenciamento de Cotações
+  const [cotacoes, setCotacoes] = useState([]);
+  const [selectedProductForPrice, setSelectedProductForPrice] = useState(null);
+  const [newPrice, setNewPrice] = useState({ valor: '', data_coleta: new Date().toISOString().split('T')[0] });
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const fetchCotacoes = async (produtoId) => {
+    try {
+      const response = await api.get(`/cotacoes/produto/${produtoId}`);
+      setCotacoes(response.data.sort((a, b) => new Date(b.data_coleta) - new Date(a.data_coleta)));
+    } catch (error) {
+      console.error("Erro ao buscar cotações", error);
+    }
+  };
+
+  const handleRegisterPrice = async (e) => {
+    e.preventDefault();
+    if (!selectedProductForPrice) return;
+    try {
+      await api.post('/cotacoes/', {
+        produto_id: selectedProductForPrice.id,
+        valor: parseFloat(newPrice.valor),
+        data_coleta: newPrice.data_coleta
+      });
+      setNewPrice({ valor: '', data_coleta: new Date().toISOString().split('T')[0] });
+      fetchCotacoes(selectedProductForPrice.id);
+      fetchDashboardData(); // Atualiza os índices no dashboard
+    } catch (error) {
+      console.error("Erro ao registrar preço", error);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -136,6 +167,9 @@ function App() {
           </a>
           <a onClick={() => setActiveTab('produtos')} className={`nav-item ${activeTab === 'produtos' ? 'active' : ''}`}>
             <Package size={20} /> Produtos
+          </a>
+          <a onClick={() => setActiveTab('precos')} className={`nav-item ${activeTab === 'precos' ? 'active' : ''}`}>
+            <DollarSign size={20} /> Preços
           </a>
           <a onClick={() => setActiveTab('cesta')} className={`nav-item ${activeTab === 'cesta' ? 'active' : ''}`}>
             <ShoppingCart size={20} /> Simulador
@@ -303,107 +337,108 @@ function App() {
           </div>
         )}
 
-        {activeTab === 'cesta' && (
+        {activeTab === 'precos' && (
           <div className="tab-content">
-            <div className="card">
-              <h3>Simulador de Cesta de Consumo</h3>
-              <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>
-                Selecione os itens abaixo e ajuste as quantidades para calcular a variação de preços da sua cesta personalizada.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                {products.map(p => {
-                  const isInBasket = basket.find(item => item.produto_id === p.id);
-                  return (
+            <div className="stats-grid" style={{ gridTemplateColumns: '1fr 2fr' }}>
+              <div className="card">
+                <h3>Selecionar Produto</h3>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  Escolha um produto para ver o histórico ou registrar um novo preço.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+                  {products.map(p => (
                     <div
                       key={p.id}
-                      onClick={() => toggleProductInBasket(p)}
-                      className={`card ${isInBasket ? 'active' : ''}`}
+                      onClick={() => { setSelectedProductForPrice(p); fetchCotacoes(p.id); }}
+                      className={`card ${selectedProductForPrice?.id === p.id ? 'active' : ''}`}
                       style={{
+                        padding: '0.75rem',
                         cursor: 'pointer',
-                        border: isInBasket ? '2px solid var(--primary)' : '1px solid var(--border)',
-                        transition: 'all 0.2s'
+                        border: selectedProductForPrice?.id === p.id ? '2px solid var(--primary)' : '1px solid var(--border)'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong>{p.nome}</strong>
-                        {isInBasket && <ShoppingCart size={16} color="var(--primary)" />}
-                      </div>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{p.unidade}</div>
+                      <strong>{p.nome}</strong>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.unidade}</div>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
 
-              {basket.length > 0 && (
-                <div className="table-container" style={{ marginBottom: '2rem' }}>
-                  <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>
-                    Itens Selecionados
-                  </div>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Produto</th>
-                        <th>Quantidade</th>
-                        <th>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {basket.map(item => (
-                        <tr key={item.produto_id}>
-                          <td>{item.nome}</td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <button onClick={(e) => { e.stopPropagation(); updateQuantity(item.produto_id, -1) }} className="btn" style={{ padding: '2px 8px' }}>-</button>
-                              <span>{item.quantidade}</span>
-                              <button onClick={(e) => { e.stopPropagation(); updateQuantity(item.produto_id, 1) }} className="btn" style={{ padding: '2px 8px' }}>+</button>
-                            </div>
-                          </td>
-                          <td>
-                            <button onClick={(e) => { e.stopPropagation(); toggleProductInBasket(item) }} style={{ color: '#ef4444', fontSize: '0.875rem', background: 'none', border: 'none', cursor: 'pointer' }}>Remover</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div style={{ padding: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleSimulate}
-                      disabled={isSimulating}
-                    >
-                      {isSimulating ? 'Calculando...' : 'Simular Inflação da Cesta'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {simulationResult && (
-                <div className="card" style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid var(--primary)' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                    <TrendingUp size={24} color="var(--primary)" />
-                    <div>
-                      <h4 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Resultado da Simulação</h4>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-                        {simulationResult.indice_geral}% <span style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text-muted)' }}>(Variação Acumulada)</span>
-                      </div>
-                      <p>{simulationResult.descricao}</p>
-                      <div style={{ marginTop: '1rem', display: 'flex', gap: '1.5rem' }}>
-                        <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Itens</div>
-                          <div style={{ fontWeight: 600 }}>{simulationResult.total_itens}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Variação Mensal</div>
-                          <div style={{ fontWeight: 600, color: simulationResult.variacao_mensal > 0 ? '#ef4444' : '#22c55e' }}>
-                            {simulationResult.variacao_mensal > 0 ? '+' : ''}{simulationResult.variacao_mensal}%
-                          </div>
-                        </div>
-                      </div>
+              <div className="card">
+                {selectedProductForPrice ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                      <h3>Histórico de Preços: {selectedProductForPrice.nome}</h3>
                     </div>
+
+                    <form onSubmit={handleRegisterPrice} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginBottom: '2rem', padding: '1rem', backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: '8px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Novo Valor (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={newPrice.valor}
+                          onChange={(e) => setNewPrice({ ...newPrice, valor: e.target.value })}
+                          placeholder="0.00"
+                          style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Data da Coleta</label>
+                        <input
+                          type="date"
+                          required
+                          value={newPrice.data_coleta}
+                          onChange={(e) => setNewPrice({ ...newPrice, data_coleta: e.target.value })}
+                          style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)' }}
+                        />
+                      </div>
+                      <button type="submit" className="btn btn-primary">Registrar Preço</button>
+                    </form>
+
+                    <div className="table-container">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Data</th>
+                            <th>Valor</th>
+                            <th>Variação</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cotacoes.length > 0 ? cotacoes.map((c, index) => {
+                            const anterior = cotacoes[index + 1];
+                            const variacao = anterior ? ((c.valor - anterior.valor) / anterior.valor * 100).toFixed(2) : null;
+                            return (
+                              <tr key={c.id}>
+                                <td>{new Date(c.data_coleta).toLocaleDateString()}</td>
+                                <td>R$ {c.valor.toFixed(2)}</td>
+                                <td>
+                                  {variacao ? (
+                                    <span style={{ color: parseFloat(variacao) > 0 ? '#ef4444' : '#22c55e', fontWeight: 600 }}>
+                                      {parseFloat(variacao) > 0 ? '+' : ''}{variacao}%
+                                    </span>
+                                  ) : <span style={{ color: 'var(--text-muted)' }}>-</span>}
+                                </td>
+                              </tr>
+                            );
+                          }) : (
+                            <tr>
+                              <td colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Nenhum preço registrado para este produto.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
+                    <DollarSign size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
+                    <p>Selecione um produto à esquerda para gerenciar os preços.</p>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
