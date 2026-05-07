@@ -21,6 +21,21 @@ class ProdutoRepository(BaseRepository):
         self._data.append(new_produto)
         return new_produto
 
+    def update(self, id: int, produto: ProdutoCreate) -> Produto:
+        for index, item in enumerate(self._data):
+            if item.id == id:
+                updated_product = Produto(id=id, **produto.model_dump())
+                self._data[index] = updated_product
+                return updated_product
+        return None
+
+    def delete(self, id: int) -> bool:
+        for index, item in enumerate(self._data):
+            if item.id == id:
+                self._data.pop(index)
+                return True
+        return False
+
 class CotacaoRepository(BaseRepository):
     def __init__(self):
         super().__init__(COTACOES_MOCK)

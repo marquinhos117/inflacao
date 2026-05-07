@@ -18,9 +18,54 @@ function App() {
   const [simulationResult, setSimulationResult] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
 
+  // Estados de Gerenciamento de Produtos
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState({ nome: '', categoria_id: 1, unidade: 'un', descricao: '' });
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await api.get('/produtos');
+      setProducts(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar produtos", error);
+    }
+  };
+
+  const handleSubmitProduct = async (e) => {
+    e.preventDefault();
+    try {
+      if (currentProduct.id) {
+        await api.put(`/produtos/${currentProduct.id}`, currentProduct);
+      } else {
+        await api.post('/produtos', currentProduct);
+      }
+      setIsEditing(false);
+      setCurrentProduct({ nome: '', categoria_id: 1, unidade: 'un', descricao: '' });
+      fetchProducts();
+    } catch (error) {
+      console.error("Erro ao salvar produto", error);
+    }
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (window.confirm("Tem certeza que deseja excluir este produto?")) {
+      try {
+        await api.delete(`/produtos/${id}`);
+        fetchProducts();
+      } catch (error) {
+        console.error("Erro ao excluir produto", error);
+      }
+    }
+  };
+
+  const handleEditProduct = (product) => {
+    setCurrentProduct(product);
+    setIsEditing(true);
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -165,27 +210,96 @@ function App() {
         )}
 
         {activeTab === 'produtos' && (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Nome</th>
-                  <th>Unidade</th>
-                  <th>Descrição</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map(p => (
-                  <tr key={p.id}>
-                    <td>#{p.id}</td>
-                    <td>{p.nome}</td>
-                    <td>{p.unidade}</td>
-                    <td>{p.descricao}</td>
+          <div className="tab-content">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3>Gerenciamento de Catálogo</h3>
+              {!isEditing && (
+                <button className="btn btn-primary" onClick={() => setIsEditing(true)}>+ Novo Produto</button>
+              )}
+            </div>
+
+            {isEditing && (
+              <div className="card" style={{ marginBottom: '2rem', border: '1px solid var(--primary)' }}>
+                <h4>{currentProduct.id ? 'Editar Produto' : 'Cadastrar Novo Produto'}</h4>
+                <form onSubmit={handleSubmitProduct} style={{ marginTop: '1rem', display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Nome</label>
+                    <input
+                      type="text"
+                      required
+                      value={currentProduct.nome}
+                      onChange={(e) => setCurrentProduct({ ...currentProduct, nome: e.target.value })}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Categoria</label>
+                    <select
+                      value={currentProduct.categoria_id}
+                      onChange={(e) => setCurrentProduct({ ...currentProduct, categoria_id: parseInt(e.target.value) })}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)' }}
+                    >
+                      <option value={1}>Alimentação</option>
+                      <option value={2}>Higiene</option>
+                      <option value={3}>Limpeza</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Unidade</label>
+                    <input
+                      type="text"
+                      required
+                      value={currentProduct.unidade}
+                      onChange={(e) => setCurrentProduct({ ...currentProduct, unidade: e.target.value })}
+                      placeholder="ex: kg, un, l"
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Descrição</label>
+                    <textarea
+                      value={currentProduct.descricao || ''}
+                      onChange={(e) => setCurrentProduct({ ...currentProduct, descricao: e.target.value })}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', minHeight: '60px' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn" onClick={() => { setIsEditing(false); setCurrentProduct({ nome: '', categoria_id: 1, unidade: 'un', descricao: '' }); }}>Cancelar</button>
+                    <button type="submit" className="btn btn-primary">Salvar Alterações</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Categoria</th>
+                    <th>Unidade</th>
+                    <th>Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {products.map(p => (
+                    <tr key={p.id}>
+                      <td>#{p.id}</td>
+                      <td>{p.nome}</td>
+                      <td>{p.categoria_id === 1 ? 'Alimentação' : p.categoria_id === 2 ? 'Higiene' : 'Limpeza'}</td>
+                      <td>{p.unidade}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                          <button onClick={() => handleEditProduct(p)} style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Editar</button>
+                          <button onClick={() => handleDeleteProduct(p.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Excluir</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

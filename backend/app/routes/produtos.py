@@ -19,3 +19,17 @@ def obter_produto(id: int):
     if not p:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
     return p
+
+@router.put("/{id}", response_model=Produto)
+def atualizar_produto(id: int, produto: ProdutoCreate):
+    p = produto_repo.update(id, produto)
+    if not p:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+    return p
+
+@router.delete("/{id}", status_code=204)
+def excluir_produto(id: int):
+    sucesso = produto_repo.delete(id)
+    if not sucesso:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+    return
