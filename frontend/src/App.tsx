@@ -20,7 +20,7 @@ function App() {
 
   // Estados de Gerenciamento de Produtos
   const [isEditing, setIsEditing] = useState(false);
-  const [currentProduct, setCurrentProduct] = useState({ nome: '', categoria_id: 1, unidade: 'un', descricao: '' });
+  const [currentProduct, setCurrentProduct] = useState({ nome: '', categoria_id: 1, unidade: 'Unidade', descricao: '' });
 
   // Estados de Gerenciamento de Cotações
   const [cotacoes, setCotacoes] = useState([]);
@@ -75,7 +75,7 @@ function App() {
         await api.post('/produtos', currentProduct);
       }
       setIsEditing(false);
-      setCurrentProduct({ nome: '', categoria_id: 1, unidade: 'un', descricao: '' });
+      setCurrentProduct({ nome: '', categoria_id: 1, unidade: 'Unidade', descricao: '' });
       fetchProducts();
     } catch (error) {
       console.error("Erro ao salvar produto", error);
@@ -285,7 +285,7 @@ function App() {
                       required
                       value={currentProduct.unidade}
                       onChange={(e) => setCurrentProduct({ ...currentProduct, unidade: e.target.value })}
-                      placeholder="ex: kg, un, l"
+                      placeholder="ex: Quilograma, Unidade, Litro"
                       style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)' }}
                     />
                   </div>
@@ -298,7 +298,7 @@ function App() {
                     />
                   </div>
                   <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                    <button type="button" className="btn" onClick={() => { setIsEditing(false); setCurrentProduct({ nome: '', categoria_id: 1, unidade: 'un', descricao: '' }); }}>Cancelar</button>
+                    <button type="button" className="btn" onClick={() => { setIsEditing(false); setCurrentProduct({ nome: '', categoria_id: 1, unidade: 'Unidade', descricao: '' }); }}>Cancelar</button>
                     <button type="submit" className="btn btn-primary">Salvar Alterações</button>
                   </div>
                 </form>

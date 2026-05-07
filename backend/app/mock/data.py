@@ -8,11 +8,11 @@ CATEGORIAS_MOCK = [
 ]
 
 PRODUTOS_MOCK = [
-    Produto(id=1, nome="Arroz Tipo 1 (5kg)", categoria_id=1, unidade="un", descricao="Arroz agulhinha"),
-    Produto(id=2, nome="Feijão Carioca (1kg)", categoria_id=1, unidade="un", descricao="Feijão novo"),
-    Produto(id=3, nome="Óleo de Soja (900ml)", categoria_id=1, unidade="un", descricao="Óleo vegetal"),
-    Produto(id=4, nome="Creme Dental", categoria_id=2, unidade="un", descricao="90g"),
-    Produto(id=5, nome="Sabão em Pó", categoria_id=3, unidade="kg", descricao="Lavagem de roupas")
+    Produto(id=1, nome="Arroz Tipo 1 (5kg)", categoria_id=1, unidade="Unidade", descricao="Arroz agulhinha"),
+    Produto(id=2, nome="Feijão Carioca (1kg)", categoria_id=1, unidade="Unidade", descricao="Feijão novo"),
+    Produto(id=3, nome="Óleo de Soja (900ml)", categoria_id=1, unidade="Unidade", descricao="Óleo vegetal"),
+    Produto(id=4, nome="Creme Dental", categoria_id=2, unidade="Unidade", descricao="90g"),
+    Produto(id=5, nome="Sabão em Pó", categoria_id=3, unidade="Quilograma", descricao="Lavagem de roupas")
 ]
 
 COTACOES_MOCK = [
