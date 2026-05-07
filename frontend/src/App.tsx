@@ -12,6 +12,11 @@ function App() {
   const [products, setProducts] = useState([]);
   const [stats, setStats] = useState({ indice_geral: 0, total_itens: 0, descricao: '' });
   const [loading, setLoading] = useState(true);
+  
+  // Estados do Simulador
+  const [basket, setBasket] = useState([]);
+  const [simulationResult, setSimulationResult] = useState(null);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -30,6 +35,46 @@ function App() {
       console.error("Erro ao carregar dados", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleProductInBasket = (product) => {
+    const exists = basket.find(item => item.produto_id === product.id);
+    if (exists) {
+      setBasket(basket.filter(item => item.produto_id !== product.id));
+    } else {
+      setBasket([...basket, { ...product, produto_id: product.id, quantidade: 1 }]);
+    }
+  };
+
+  const updateQuantity = (productId, delta) => {
+    setBasket(basket.map(item => {
+      if (item.produto_id === productId) {
+        const newQty = Math.max(1, item.quantidade + delta);
+        return { ...item, quantidade: newQty };
+      }
+      return item;
+    }));
+  };
+
+  const handleSimulate = async () => {
+    if (basket.length === 0) return;
+    
+    try {
+      setIsSimulating(true);
+      const payload = {
+        itens: basket.map(item => ({
+          produto_id: item.produto_id,
+          quantidade: item.quantidade
+        }))
+      };
+      const response = await api.post('/inflacao/simular-cesta', payload);
+      setSimulationResult(response.data);
+    } catch (error) {
+      console.error("Erro na simulação", error);
+      alert("Erro ao processar simulação");
+    } finally {
+      setIsSimulating(false);
     }
   };
 
@@ -145,19 +190,108 @@ function App() {
         )}
 
         {activeTab === 'cesta' && (
-           <div className="card">
-             <h3>Simulador de Cesta de Consumo</h3>
-             <p style={{marginBottom: '1rem'}}>Selecione os itens para calcular a inflação da sua cesta personalizada.</p>
-             <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
-                {products.map(p => (
-                  <div key={p.id} className="card" style={{width: '200px', cursor: 'pointer'}}>
-                    <strong>{p.nome}</strong>
-                    <div style={{fontSize: '0.875rem', color: 'var(--text-muted)'}}>Clique para adicionar</div>
+          <div className="tab-content">
+            <div className="card">
+              <h3>Simulador de Cesta de Consumo</h3>
+              <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>
+                Selecione os itens abaixo e ajuste as quantidades para calcular a variação de preços da sua cesta personalizada.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                {products.map(p => {
+                  const isInBasket = basket.find(item => item.produto_id === p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => toggleProductInBasket(p)}
+                      className={`card ${isInBasket ? 'active' : ''}`}
+                      style={{
+                        cursor: 'pointer',
+                        border: isInBasket ? '2px solid var(--primary)' : '1px solid var(--border)',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <strong>{p.nome}</strong>
+                        {isInBasket && <ShoppingCart size={16} color="var(--primary)" />}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{p.unidade}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {basket.length > 0 && (
+                <div className="table-container" style={{ marginBottom: '2rem' }}>
+                  <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>
+                    Itens Selecionados
                   </div>
-                ))}
-             </div>
-             <button className="btn btn-primary" style={{marginTop: '2rem'}}>Calcular Variação</button>
-           </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Produto</th>
+                        <th>Quantidade</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {basket.map(item => (
+                        <tr key={item.produto_id}>
+                          <td>{item.nome}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <button onClick={(e) => { e.stopPropagation(); updateQuantity(item.produto_id, -1) }} className="btn" style={{ padding: '2px 8px' }}>-</button>
+                              <span>{item.quantidade}</span>
+                              <button onClick={(e) => { e.stopPropagation(); updateQuantity(item.produto_id, 1) }} className="btn" style={{ padding: '2px 8px' }}>+</button>
+                            </div>
+                          </td>
+                          <td>
+                            <button onClick={(e) => { e.stopPropagation(); toggleProductInBasket(item) }} style={{ color: '#ef4444', fontSize: '0.875rem', background: 'none', border: 'none', cursor: 'pointer' }}>Remover</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={{ padding: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSimulate}
+                      disabled={isSimulating}
+                    >
+                      {isSimulating ? 'Calculando...' : 'Simular Inflação da Cesta'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {simulationResult && (
+                <div className="card" style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid var(--primary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                    <TrendingUp size={24} color="var(--primary)" />
+                    <div>
+                      <h4 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Resultado da Simulação</h4>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                        {simulationResult.indice_geral}% <span style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text-muted)' }}>(Variação Acumulada)</span>
+                      </div>
+                      <p>{simulationResult.descricao}</p>
+                      <div style={{ marginTop: '1rem', display: 'flex', gap: '1.5rem' }}>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Itens</div>
+                          <div style={{ fontWeight: 600 }}>{simulationResult.total_itens}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Variação Mensal</div>
+                          <div style={{ fontWeight: 600, color: simulationResult.variacao_mensal > 0 ? '#ef4444' : '#22c55e' }}>
+                            {simulationResult.variacao_mensal > 0 ? '+' : ''}{simulationResult.variacao_mensal}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {activeTab === 'sobre' && (
