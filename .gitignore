@@ -1,0 +1,24 @@
+# Dependências
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+dist/
+build/
+
+# IDEs e Editores
+.vscode/
+.idea/
+.DS_Store
+
+# Variáveis de Ambiente
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
